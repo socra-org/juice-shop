@@ -13,6 +13,34 @@ import { UserModel } from '../models/user'
 import * as utils from '../lib/utils'
 import logger from '../lib/logger'
 
+function getAllowedImageHosts (): string[] {
+  const configured = process.env.ALLOWED_IMAGE_HOSTS
+  if (configured !== undefined && configured.trim() !== '') {
+    return configured.split(',').map(host => host.trim().toLowerCase()).filter(Boolean)
+  }
+  return ['images.unsplash.com', 'i.imgur.com', 'cdn.jsdelivr.net']
+}
+
+function validateProfileImageUrl (rawUrl: string): string {
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    throw new Error('Invalid image URL')
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Only HTTP(S) image URLs are allowed')
+  }
+
+  const allowedHosts = getAllowedImageHosts()
+  if (!allowedHosts.includes(parsed.hostname.toLowerCase())) {
+    throw new Error('Image host is not allowed')
+  }
+
+  return parsed.toString()
+}
+
 export function profileImageUrlUpload () {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (req.body.imageUrl !== undefined) {
@@ -21,7 +49,8 @@ export function profileImageUrlUpload () {
       const loggedInUser = security.authenticatedUsers.get(req.cookies.token)
       if (loggedInUser) {
         try {
-          const response = await fetch(url)
+          const validatedUrl = validateProfileImageUrl(url)
+          const response = await fetch(validatedUrl)
           if (!response.ok || !response.body) {
             throw new Error('url returned a non-OK status code or an empty body')
           }
