@@ -19,6 +19,14 @@ import { UserModel } from '../models/user'
 
 const entities = new Entities()
 
+const buildSafeDataErasureTemplateVars = (body: DataErasureRequestParams): Record<string, string> => {
+  const safeVars: Record<string, string> = {}
+  if (typeof body.email === 'string') safeVars.email = body.email
+  if (typeof body.request === 'string') safeVars.request = body.request
+  if (typeof body.message === 'string') safeVars.message = body.message
+  return safeVars
+}
+
 const router = express.Router()
 
 router.get('/', (req: Request, res: Response, next: NextFunction) => {
@@ -104,8 +112,9 @@ router.post('/', (req: Request<Record<string, unknown>, Record<string, unknown>,
         const filePath: string = path.resolve(req.body.layout).toLowerCase()
         const isForbiddenFile: boolean = (filePath.includes('ftp') || filePath.includes('ctf.key') || filePath.includes('encryptionkeys'))
         if (!isForbiddenFile) {
+          const safeTemplateVars = buildSafeDataErasureTemplateVars(req.body)
           res.render('dataErasureResult', {
-            ...req.body,
+            ...safeTemplateVars,
             ...themeVars
           }, (error, html) => {
             if (!html || error) {
@@ -120,8 +129,9 @@ router.post('/', (req: Request<Record<string, unknown>, Record<string, unknown>,
           next(new Error('File access not allowed'))
         }
       } else {
+        const safeTemplateVars = buildSafeDataErasureTemplateVars(req.body)
         res.render('dataErasureResult', {
-          ...req.body,
+          ...safeTemplateVars,
           ...themeVars
         })
       }
